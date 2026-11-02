@@ -1,3 +1,5 @@
+import { addInteraction, fetchBusinesses, upsertBusiness } from './supabase-client.js';
+
 const STORAGE_KEY = 'procure-aonde-data-v1';
 const SESSION_KEY = 'procure-aonde-session-v1';
 const BUSINESSES_CLEAR_KEY = 'procure-aonde-businesses-clear-v1';
@@ -19,18 +21,43 @@ const starterBusinesses = [];
 const state = { businesses: [], query: '', location: '', category: '', sort: 'relevance', editingId: null };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+const THEME_KEY = 'procure-aonde-theme';
 
-function loadData() {
+function setTheme(theme) {
+  const isDark = theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+  const toggle = $('.theme-toggle');
+  if (toggle) {
+    toggle.setAttribute('aria-pressed', String(isDark));
+    toggle.setAttribute('aria-label', isDark ? 'Ativar modo claro' : 'Ativar modo escuro');
+    toggle.querySelector('.theme-toggle-icon').textContent = isDark ? '☀' : '☾';
+    toggle.querySelector('.theme-toggle-label').textContent = isDark ? 'Modo claro' : 'Modo escuro';
+  }
+}
+
+function initializeTheme() {
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  const preferredTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  setTheme(preferredTheme);
+}
+
+function toggleTheme() {
+  const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, nextTheme);
+  setTheme(nextTheme);
+}
+
+async function loadData() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    state.businesses = Array.isArray(saved) ? saved : starterBusinesses;
-    if (!localStorage.getItem(BUSINESSES_CLEAR_KEY)) {
-      state.businesses = [];
-      saveData();
-      localStorage.setItem(BUSINESSES_CLEAR_KEY, 'true');
+    state.businesses = await fetchBusinesses();
+  } catch (error) {
+    console.error('Não foi possível carregar os dados do Supabase.', error);
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      state.businesses = Array.isArray(saved) ? saved : starterBusinesses;
+    } catch {
+      state.businesses = starterBusinesses;
     }
-  } catch {
-    state.businesses = starterBusinesses;
   }
 }
 
@@ -74,12 +101,18 @@ function renderBusinesses() {
   $('#active-filters').innerHTML = filters.length ? `${filters.join(' · ')} <button class="text-button" data-action="clear-filters">Limpar</button>` : '';
 }
 
-function recordInteraction(id, type) {
+async function recordInteraction(id, type) {
   const business = state.businesses.find((item) => item.id === id);
   if (!business) return;
   const key = type === 'view' ? 'view' : type;
+  business.interactions = business.interactions || {};
   business.interactions[key] = (business.interactions[key] || 0) + 1;
   saveData();
+  try {
+    await addInteraction(id, key);
+  } catch (error) {
+    console.error('Não foi possível registrar a interação no Supabase.', error);
+  }
 }
 
 function openBusiness(id) {
@@ -200,7 +233,10 @@ function handleBusinessSubmit(event) {
   const business = { id, name: $('#business-name').value.trim(), category: $('#business-category').value, description: $('#business-description').value.trim(), location: $('#business-location').value.trim(), hours: $('#business-hours').value.trim(), whatsapp: whatsappLink($('#business-whatsapp').value.trim()), instagram: $('#business-instagram').value.trim(), map: $('#business-map').value.trim(), order: $('#business-order').value.trim(), logo: state.logoData || previous?.logo || '', cover: state.coverData || previous?.cover || '', status: $('#business-published').checked ? 'published' : 'draft', createdAt: previous?.createdAt || new Date().toISOString().slice(0, 10), interactions: previous?.interactions || { view: 0, whatsapp: 0, instagram: 0, location: 0, order: 0 } };
   if (!business.name || !business.description || !business.location) { $('#form-message').textContent = 'Preencha nome, descrição e localização.'; return; }
   if (previous) state.businesses = state.businesses.map((item) => item.id === id ? business : item); else state.businesses.push(business);
-  saveData(); localStorage.setItem(SESSION_KEY, JSON.stringify({ ...getSession(), businessId: id })); state.logoData = ''; state.coverData = ''; $('#form-message').textContent = 'Dados salvos com sucesso.'; showAdmin(); renderBusinesses();
+  saveData();
+  upsertBusiness(business)
+    .then(() => { localStorage.setItem(SESSION_KEY, JSON.stringify({ ...getSession(), businessId: id })); state.logoData = ''; state.coverData = ''; $('#form-message').textContent = 'Dados salvos com sucesso.'; showAdmin(); renderBusinesses(); })
+    .catch((error) => { console.error('Não foi possível salvar a empresa no Supabase.', error); $('#form-message').textContent = 'Não foi possível salvar os dados. Tente novamente.'; });
 }
 
 function search(query, location = $('#hero-location').value) { state.query = query.trim(); state.location = location.trim(); $('#hero-query').value = state.query; $('#hero-location').value = state.location; renderBusinesses(); $('#results').scrollIntoView({ behavior: 'smooth' }); }
@@ -213,7 +249,7 @@ document.addEventListener('click', (event) => {
   const editButton = event.target.closest('[data-edit]'); if (editButton) { fillForm(editButton.dataset.edit); return; }
   const profileTab = event.target.closest('[data-profile-tab]'); if (profileTab) { const tab = profileTab.dataset.profileTab; $$('.profile-tabs button').forEach((button) => button.classList.toggle('active', button === profileTab)); $$('.profile-tab-content').forEach((content) => content.classList.toggle('active', content.id === `profile-${tab}`)); return; }
   const action = event.target.closest('[data-action]')?.dataset.action;
-  if (action === 'admin') showAdmin(); if (action === 'home') showPublic(); if (action === 'open-services') openDrawer(); if (action === 'toggle-services') toggleDrawer(); if (action === 'close-services') closeDrawer(); if (action === 'close-modal') closeModal(); if (action === 'close-auth') closeAuth(); if (action === 'logout') logout(); if (action === 'edit-profile') { $('#profile-view').hidden = true; $('#profile-editor').hidden = false; } if (action === 'close-profile-editor') { $('#profile-editor').hidden = true; $('#profile-view').hidden = false; } if (action === 'clear-filters') { state.query = ''; state.location = ''; state.category = ''; $('#hero-query').value = ''; $('#hero-location').value = ''; renderCategories(); renderBusinesses(); }
+  if (action === 'admin') showAdmin(); if (action === 'home') showPublic(); if (action === 'open-services') openDrawer(); if (action === 'toggle-services') toggleDrawer(); if (action === 'close-services') closeDrawer(); if (action === 'close-modal') closeModal(); if (action === 'close-auth') closeAuth(); if (action === 'logout') logout(); if (action === 'toggle-theme') toggleTheme(); if (action === 'edit-profile') { $('#profile-view').hidden = true; $('#profile-editor').hidden = false; } if (action === 'close-profile-editor') { $('#profile-editor').hidden = true; $('#profile-view').hidden = false; } if (action === 'clear-filters') { state.query = ''; state.location = ''; state.category = ''; $('#hero-query').value = ''; $('#hero-location').value = ''; renderCategories(); renderBusinesses(); }
 });
 if ($('#hero-search-form')) $('#hero-search-form').addEventListener('submit', (event) => { event.preventDefault(); search($('#hero-query').value); });
 if ($('#sort-select')) $('#sort-select').addEventListener('change', (event) => { state.sort = event.target.value; renderBusinesses(); });
@@ -245,11 +281,13 @@ if ($('#drawer-backdrop')) $('#drawer-backdrop').addEventListener('click', close
 if ($('#modal-backdrop')) $('#modal-backdrop').addEventListener('click', () => { if ($('#auth-modal').hidden) closeModal(); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeDrawer(); closeModal(); closeAuth(); } });
 
-loadData();
-if ($('#business-grid')) {
-  renderCategories();
-  renderBusinesses();
-}
+initializeTheme();
+loadData().then(() => {
+  if ($('#business-grid')) {
+    renderCategories();
+    renderBusinesses();
+  }
+});
 if (document.body.dataset.page === 'admin') {
   $('#business-category').innerHTML = categories.map((category) => `<option value="${category.name}">${category.name}</option>`).join('');
   if (hasAdminSession()) showAdmin();

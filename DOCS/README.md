@@ -1,5 +1,24 @@
 # PRD — Plataforma de Anúncios de Serviços
 
+## Desenvolvimento local e Supabase
+
+Instale as dependências e inicie o projeto com:
+
+```bash
+npm install
+npm run dev
+```
+
+As credenciais ficam em `.env`, usando `VITE_SUPABASE_URL` e
+`VITE_SUPABASE_ANON_KEY`. O arquivo `.env.example` contém o formato esperado e
+`.env` não deve ser versionado.
+
+A estrutura do banco está em
+`supabase/migrations/20261102164700_initial_schema.sql`. Execute essa migration
+no Supabase MCP ou no SQL Editor antes de usar o cadastro de empresas. O site
+usa `businesses` para anúncios e `business_interactions` para métricas de
+visualizações e contatos.
+
 ## Prompt principal para criação do produto
 
 Crie uma plataforma web responsiva de anúncios de serviços e empresas locais. O
