@@ -137,7 +137,8 @@ function closeDrawer() { $('#services-drawer').classList.remove('open'); $('#ser
 function openDrawer() { $('#services-drawer').classList.add('open'); $('#services-drawer').setAttribute('aria-hidden', 'false'); $('#drawer-backdrop').hidden = false; $('.services-toggle').setAttribute('aria-expanded', 'true'); }
 function toggleDrawer() { $('#services-drawer').classList.contains('open') ? closeDrawer() : openDrawer(); }
 
-function showAdmin() {
+async function showAdmin() {
+  await dataReady;
   if (!hasAdminSession()) { showAuth(); return; }
   if (!getOwnedBusiness()) { showCompanyOnboarding(); return; }
   $('#admin-onboarding').hidden = true; $('#admin-view').hidden = false; document.body.classList.add('admin-active'); $('#admin-panels').appendChild($('#profile-panel')); $('#profile-panel').classList.remove('onboarding-profile'); $('#profile-view').hidden = false; $('#profile-editor').hidden = true; renderAdmin(); window.scrollTo(0, 0);
@@ -228,15 +229,33 @@ function fillForm(id) {
 
 function handleBusinessSubmit(event) {
   event.preventDefault();
+  const submitButton = $('#business-form button[type="submit"]');
+  if (submitButton.disabled) return;
   const id = state.editingId || `business-${Date.now()}`;
   const previous = state.businesses.find((item) => item.id === id);
   const business = { id, name: $('#business-name').value.trim(), category: $('#business-category').value, description: $('#business-description').value.trim(), location: $('#business-location').value.trim(), hours: $('#business-hours').value.trim(), whatsapp: whatsappLink($('#business-whatsapp').value.trim()), instagram: $('#business-instagram').value.trim(), map: $('#business-map').value.trim(), order: $('#business-order').value.trim(), logo: state.logoData || previous?.logo || '', cover: state.coverData || previous?.cover || '', status: $('#business-published').checked ? 'published' : 'draft', createdAt: previous?.createdAt || new Date().toISOString().slice(0, 10), interactions: previous?.interactions || { view: 0, whatsapp: 0, instagram: 0, location: 0, order: 0 } };
   if (!business.name || !business.description || !business.location) { $('#form-message').textContent = 'Preencha nome, descrição e localização.'; return; }
   if (previous) state.businesses = state.businesses.map((item) => item.id === id ? business : item); else state.businesses.push(business);
   saveData();
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...getSession(), businessId: id }));
+  state.logoData = '';
+  state.coverData = '';
+  showAdmin();
+  renderBusinesses();
+  submitButton.disabled = true;
+  submitButton.textContent = 'Salvando...';
   upsertBusiness(business)
-    .then(() => { localStorage.setItem(SESSION_KEY, JSON.stringify({ ...getSession(), businessId: id })); state.logoData = ''; state.coverData = ''; $('#form-message').textContent = 'Dados salvos com sucesso.'; showAdmin(); renderBusinesses(); })
-    .catch((error) => { console.error('Não foi possível salvar a empresa no Supabase.', error); $('#form-message').textContent = 'Não foi possível salvar os dados. Tente novamente.'; });
+    .then(() => { $('#form-message').textContent = 'Dados salvos com sucesso.'; })
+    .catch((error) => {
+      console.error('Não foi possível salvar a empresa no Supabase.', error);
+      $('#profile-view').hidden = true;
+      $('#profile-editor').hidden = false;
+      $('#form-message').textContent = 'Não foi possível salvar os dados. Tente novamente.';
+    })
+    .finally(() => {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Salvar alterações';
+    });
 }
 
 function search(query, location = $('#hero-location').value) { state.query = query.trim(); state.location = location.trim(); $('#hero-query').value = state.query; $('#hero-location').value = state.location; renderBusinesses(); $('#results').scrollIntoView({ behavior: 'smooth' }); }
@@ -282,15 +301,16 @@ if ($('#modal-backdrop')) $('#modal-backdrop').addEventListener('click', () => {
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeDrawer(); closeModal(); closeAuth(); } });
 
 initializeTheme();
-loadData().then(() => {
+const dataReady = loadData();
+dataReady.then(() => {
   if ($('#business-grid')) {
     renderCategories();
     renderBusinesses();
   }
+  if (document.body.dataset.page === 'admin') {
+    $('#business-category').innerHTML = categories.map((category) => `<option value="${category.name}">${category.name}</option>`).join('');
+    if (hasAdminSession()) showAdmin();
+    else showAuth();
+  }
 });
-if (document.body.dataset.page === 'admin') {
-  $('#business-category').innerHTML = categories.map((category) => `<option value="${category.name}">${category.name}</option>`).join('');
-  if (hasAdminSession()) showAdmin();
-  else showAuth();
-}
 if ($('#profile-view')) $$('.profile-tab-content').forEach((content, index) => { if (index > 0) content.classList.remove('active'); });
