@@ -200,7 +200,12 @@ function renderProfile(business) {
   $('#profile-info-order').textContent = business.order ? 'Link disponível' : 'Não informado';
   $('#profile-logo').style.backgroundImage = business.logo ? `url("${business.logo}")` : '';
   $('#profile-logo-placeholder').hidden = Boolean(business.logo);
-  $('#profile-cover').style.backgroundImage = business.cover ? `url("${business.cover}")` : '';
+  const profileCover = $('#profile-cover');
+  const hasCover = Boolean(business.cover);
+  profileCover.style.backgroundImage = hasCover ? `url("${business.cover}")` : '';
+  profileCover.style.backgroundSize = hasCover ? 'cover' : '';
+  profileCover.style.backgroundPosition = hasCover ? 'center' : '';
+  profileCover.style.backgroundRepeat = hasCover ? 'no-repeat' : '';
   const totals = business.interactions || {};
   const interactions = Object.entries(totals).filter(([key]) => key !== 'view').reduce((sum, [, value]) => sum + value, 0);
   $('#profile-interactions').textContent = interactions;

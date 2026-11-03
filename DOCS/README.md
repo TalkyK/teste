@@ -9,6 +9,10 @@ npm install
 npm run dev
 ```
 
+Também é possível usar a extensão Live Server do VS Code: abra o projeto pela
+opção **Open with Live Server** e acesse o endereço HTTP exibido pela extensão.
+Não abra `index.html` diretamente pelo explorador de arquivos (`file://`).
+
 As credenciais ficam em `.env`, usando `VITE_SUPABASE_URL` e
 `VITE_SUPABASE_ANON_KEY`. O arquivo `.env.example` contém o formato esperado e
 `.env` não deve ser versionado.
