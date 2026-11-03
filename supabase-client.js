@@ -3,11 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env.');
-}
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function requireSupabase() {
+  if (!supabase) {
+    throw new Error('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env.');
+  }
+  return supabase;
+}
 
 function toBusiness(row, interactions = []) {
   const counts = interactions
@@ -20,9 +23,10 @@ function toBusiness(row, interactions = []) {
 }
 
 export async function fetchBusinesses() {
+  const client = requireSupabase();
   const [{ data: businesses, error: businessesError }, { data: interactions, error: interactionsError }] = await Promise.all([
-    supabase.from('businesses').select('*').order('created_at', { ascending: false }),
-    supabase.from('business_interactions').select('business_id, type'),
+    client.from('businesses').select('*').order('created_at', { ascending: false }),
+    client.from('business_interactions').select('business_id, type'),
   ]);
   if (businessesError) throw businessesError;
   if (interactionsError) throw interactionsError;
@@ -30,6 +34,7 @@ export async function fetchBusinesses() {
 }
 
 export async function upsertBusiness(business) {
+  const client = requireSupabase();
   const record = {
     id: business.id,
     name: business.name,
@@ -46,7 +51,7 @@ export async function upsertBusiness(business) {
     status: business.status,
     created_at: business.createdAt || business.created_at || new Date().toISOString(),
   };
-  const { data, error } = await supabase.from('businesses').upsert({
+  const { data, error } = await client.from('businesses').upsert({
     ...record,
     updated_at: new Date().toISOString(),
   }).select().single();
@@ -55,7 +60,8 @@ export async function upsertBusiness(business) {
 }
 
 export async function addInteraction(businessId, type) {
-  const { error } = await supabase.from('business_interactions').insert({
+  const client = requireSupabase();
+  const { error } = await client.from('business_interactions').insert({
     business_id: businessId,
     type,
   });
