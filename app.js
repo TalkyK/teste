@@ -161,7 +161,12 @@ function whatsappNumber(value = '') {
 }
 function safeLink(value = '') { return /^https?:\/\//i.test(value) ? value : ''; }
 function showAuth() { $('#auth-modal').hidden = false; $('#modal-backdrop').hidden = false; }
-function closeAuth() { if (!hasAdminSession()) return; $('#auth-modal').hidden = true; if ($('#business-modal').hidden) $('#modal-backdrop').hidden = true; }
+function closeAuth() {
+  if (!hasAdminSession()) return;
+  $('#auth-modal').hidden = true;
+  const businessModal = $('#business-modal');
+  if (!businessModal || businessModal.hidden) $('#modal-backdrop').hidden = true;
+}
 function logout() { localStorage.removeItem(SESSION_KEY); showPublic(); showAuth(); }
 function showCompanyOnboarding() { $('#admin-view').hidden = true; $('#admin-onboarding').hidden = false; document.body.classList.remove('admin-active'); $('#profile-panel-slot').appendChild($('#profile-panel')); $('#profile-panel').classList.add('onboarding-profile'); $('#profile-view').hidden = true; $('#profile-editor').hidden = false; resetForm(); window.scrollTo(0, 0); }
 function renderAnalytics() {
