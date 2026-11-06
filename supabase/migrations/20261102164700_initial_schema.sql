@@ -1,5 +1,6 @@
 create table if not exists public.businesses (
   id text primary key,
+  owner_id uuid references auth.users(id) on delete cascade,
   name text not null,
   category text not null,
   description text not null,
@@ -16,6 +17,9 @@ create table if not exists public.businesses (
   updated_at timestamptz not null default now()
 );
 
+alter table public.businesses
+  add column if not exists owner_id uuid references auth.users(id) on delete cascade;
+
 create table if not exists public.business_interactions (
   id bigint generated always as identity primary key,
   business_id text not null references public.businesses(id) on delete cascade,
@@ -24,6 +28,7 @@ create table if not exists public.business_interactions (
 );
 
 create index if not exists businesses_status_idx on public.businesses(status);
+create index if not exists businesses_owner_id_idx on public.businesses(owner_id);
 create index if not exists business_interactions_business_id_idx on public.business_interactions(business_id);
 create index if not exists business_interactions_created_at_idx on public.business_interactions(created_at);
 
@@ -46,14 +51,14 @@ drop policy if exists "Public can create business records" on public.businesses;
 create policy "Public can create business records"
   on public.businesses for insert
   to anon, authenticated
-  with check (true);
+  with check (auth.uid() = owner_id);
 
 drop policy if exists "Public can update business records" on public.businesses;
 create policy "Public can update business records"
   on public.businesses for update
   to anon, authenticated
-  using (true)
-  with check (true);
+  using (auth.uid() = owner_id)
+  with check (auth.uid() = owner_id);
 
 drop policy if exists "Public can add interactions" on public.business_interactions;
 create policy "Public can add interactions"

@@ -12,14 +12,14 @@
       <div class="admin-shell">
         <header class="admin-header">
           <a class="brand" href="index.html"><span class="brand-mark">P</span><span>Procure Aonde</span></a>
-          <a class="link-button outline-button" href="index.html">← Voltar ao site</a>
+          <a class="link-button outline-button" href="index.html">Voltar</a>
         </header>
         <div class="admin-layout">
           <aside class="admin-sidebar">
             <p class="eyebrow purple">Área do empresário</p>
             <h1>Seu negócio em destaque.</h1>
             <p>Gerencie seu anúncio e veja como as pessoas encontram sua empresa.</p>
-            <div class="admin-sidebar-note">Os dados desta demonstração ficam salvos neste navegador.</div>
+            <div class="admin-sidebar-note">Seus dados ficam salvos com segurança na conta da plataforma.</div>
           </aside>
           <main class="admin-main">
             <div class="admin-title-row">
@@ -48,7 +48,7 @@
                   <div class="profile-footer-actions"><button class="outline-button" data-action="edit-profile">Editar dados da empresa</button></div>
                 </div>
                 <div class="profile-editor" id="profile-editor">
-                  <div class="panel-heading"><div><p class="eyebrow purple">Gerenciar perfil</p><h3 id="editor-title">Perfil da Empresa</h3></div><button class="text-button" type="button" data-action="close-profile-editor">Voltar ao perfil</button></div>
+                  <div class="panel-heading"><div><p class="eyebrow purple">Gerenciar perfil</p><h3 id="editor-title">Perfil da Empresa</h3></div><a class="text-button" href="index.html">Voltar</a></div>
                   <form id="business-form" class="business-form">
                     <input type="hidden" id="business-id" />
                     <div class="logo-field"><div class="business-logo-preview" id="business-logo-preview"><span id="business-logo-placeholder">P</span></div><label class="logo-upload">Alterar logo<input id="business-logo" type="file" accept="image/*" /></label></div>
@@ -72,12 +72,13 @@
     </section>
     <div class="modal-backdrop" id="modal-backdrop" hidden></div>
     <section class="modal auth-modal" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
-      <div class="auth-heading"><span class="brand-mark">P</span><p class="eyebrow purple">Área empresarial</p><h2 id="auth-title">Cadastre-se para acessar o painel</h2><p>Informe seu e-mail empresarial e crie uma senha de 8 dígitos.</p></div>
+      <div class="auth-heading"><span class="brand-mark">P</span><p class="eyebrow purple">Área empresarial</p><h2 id="auth-title">Entrar no painel</h2><p id="auth-description">Use o e-mail cadastrado e sua senha de 8 dígitos.</p></div>
       <form id="auth-form" class="business-form">
         <label>E-mail empresarial<input id="auth-email" type="email" required placeholder="voce@empresa.com" /></label>
         <label>Senha de 8 dígitos<input id="auth-password" type="password" inputmode="numeric" minlength="8" maxlength="8" pattern="[0-9]{8}" required placeholder="Digite 8 dígitos" /></label>
         <p class="form-message" id="auth-message" role="status"></p>
-        <button class="primary-button" type="submit">Concluir cadastro</button>
+        <button class="primary-button" id="auth-submit" type="submit">Entrar</button>
+        <button class="text-button" id="auth-toggle" type="button">Ainda não tenho conta</button>
       </form>
     </section>
     <section class="admin-onboarding" id="admin-onboarding" hidden>

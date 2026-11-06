@@ -1,31 +1,18 @@
+import { createClient } from '@supabase/supabase-js';
+
 const viteEnv = import.meta.env || {};
 const supabaseUrl = viteEnv.VITE_SUPABASE_URL || window.__SUPABASE_URL__ || '';
 const supabaseAnonKey = viteEnv.VITE_SUPABASE_ANON_KEY || window.__SUPABASE_ANON_KEY__ || '';
 
-export const supabase = supabaseUrl && supabaseAnonKey ? { url: supabaseUrl, anonKey: supabaseAnonKey } : null;
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 function requireSupabase() {
   if (!supabase) {
     throw new Error('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env.');
   }
   return supabase;
-}
-
-async function request(path, options = {}) {
-  const client = requireSupabase();
-  const response = await fetch(`${client.url}/rest/v1/${path}`, {
-    ...options,
-    headers: {
-      apikey: client.anonKey,
-      Authorization: `Bearer ${client.anonKey}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Supabase respondeu com HTTP ${response.status}.`);
-  }
-  return response.status === 204 ? null : response.json();
 }
 
 function toBusiness(row, interactions = []) {
@@ -39,16 +26,24 @@ function toBusiness(row, interactions = []) {
 }
 
 export async function fetchBusinesses() {
-  const [businesses, interactions] = await Promise.all([
-    request('businesses?select=*&order=created_at.desc'),
-    request('business_interactions?select=business_id,type'),
+  const client = requireSupabase();
+  const [{ data: businesses, error: businessesError }, { data: interactions, error: interactionsError }] = await Promise.all([
+    client.from('businesses').select('*').order('created_at', { ascending: false }),
+    client.from('business_interactions').select('business_id,type'),
   ]);
+  if (businessesError) throw businessesError;
+  if (interactionsError) throw interactionsError;
   return (businesses || []).map((business) => toBusiness(business, interactions || []));
 }
 
 export async function upsertBusiness(business) {
+  const client = requireSupabase();
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('É necessário estar autenticado para salvar uma empresa.');
   const record = {
     id: business.id,
+    owner_id: user.id,
     name: business.name,
     category: business.category,
     description: business.description,
@@ -62,21 +57,50 @@ export async function upsertBusiness(business) {
     cover: business.cover || null,
     status: business.status,
     created_at: business.createdAt || business.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
-  const [data] = await request('businesses?on_conflict=id', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({ ...record, updated_at: new Date().toISOString() }),
-  });
+  const { data, error } = await client.from('businesses')
+    .upsert(record, { onConflict: 'id' })
+    .select()
+    .single();
+  if (error) throw error;
   return toBusiness(data, []);
 }
 
 export async function addInteraction(businessId, type) {
-  await request('business_interactions', {
-    method: 'POST',
-    body: JSON.stringify({
-      business_id: businessId,
-      type,
-    }),
+  const client = requireSupabase();
+  const { error } = await client.from('business_interactions').insert({ business_id: businessId, type });
+  if (error) throw error;
+}
+
+export async function registerUser(email, password) {
+  const client = requireSupabase();
+  const redirectUrl = new URL('/htmladm.html', window.location.origin).toString();
+  const { data, error } = await client.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: redirectUrl },
   });
+  if (error) throw error;
+  return data;
+}
+
+export async function signInUser(email, password) {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
+}
+
+export async function getCurrentUser() {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.getUser();
+  if (error && error.name !== 'AuthSessionMissingError') throw error;
+  return data.user;
+}
+
+export async function signOut() {
+  const client = requireSupabase();
+  const { error } = await client.auth.signOut();
+  if (error) throw error;
 }

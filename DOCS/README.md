@@ -13,6 +13,13 @@ Também é possível usar a extensão Live Server do VS Code: abra o projeto pel
 opção **Open with Live Server** e acesse o endereço HTTP exibido pela extensão.
 Não abra `index.html` diretamente pelo explorador de arquivos (`file://`).
 
+Para testar a confirmação de e-mail em outro dispositivo, inicie o Vite com
+`npm run dev -- --host 0.0.0.0` e abra no celular o endereço de rede exibido
+(por exemplo, `http://192.168.0.10:5173`), nunca `http://localhost:5173`.
+Esse mesmo endereço precisa estar cadastrado no Supabase em **Authentication >
+URL Configuration > Redirect URLs**, por exemplo:
+`http://192.168.0.10:5173/**`.
+
 As credenciais ficam em `.env`, usando `VITE_SUPABASE_URL` e
 `VITE_SUPABASE_ANON_KEY`. O arquivo `.env.example` contém o formato esperado e
 `.env` não deve ser versionado.
@@ -20,7 +27,8 @@ As credenciais ficam em `.env`, usando `VITE_SUPABASE_URL` e
 A estrutura do banco está em
 `supabase/migrations/20261102164700_initial_schema.sql`. Execute essa migration
 no Supabase MCP ou no SQL Editor antes de usar o cadastro de empresas. O site
-usa `businesses` para anúncios e `business_interactions` para métricas de
+usa o Supabase Auth para armazenar as contas (incluindo os e-mails) e `businesses`
+para anúncios. A tabela `business_interactions` armazena métricas de
 visualizações e contatos.
 
 ## Prompt principal para criação do produto
